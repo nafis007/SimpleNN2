@@ -71,18 +71,18 @@ public class BasicCSVClassifier {
             int numClasses = 10;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
 
             int batchSizeTraining = 37143;    //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
-            DataSet trainingData1 = readCSVDataset("train_most100.csv",
+            DataSet trainingData = readCSVDataset("train_most100.csv",
                     batchSizeTraining, labelIndex, numClasses);
             
-            SplitTestAndTrain testAndTrain = trainingData1.splitTestAndTrain(0.65);  //Use 65% of data for training
+            //SplitTestAndTrain testAndTrain = trainingData1.splitTestAndTrain(0.65);  //Use 65% of data for training
 
             // this is the data we want to classify
-            //int batchSizeTest = 12159;
-            //DataSet testData = readCSVDataset("test_most100.csv",
-            //        batchSizeTest, labelIndex, numClasses);
+            int batchSizeTest = 12164;
+            DataSet testData = readCSVDataset("dev_most100.csv",
+                    batchSizeTest, labelIndex, numClasses);
 
-            DataSet trainingData = testAndTrain.getTrain();
-            DataSet testData = testAndTrain.getTest();
+            //DataSet trainingData = testAndTrain.getTrain();
+            //DataSet testData = testAndTrain.getTest();
             
             // make the data model for records prior to normalization, because it
             // changes the data.
