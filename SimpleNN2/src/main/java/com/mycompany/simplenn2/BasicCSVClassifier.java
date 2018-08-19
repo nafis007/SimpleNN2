@@ -37,6 +37,7 @@ import java.io.FileReader;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.nd4j.linalg.dataset.SplitTestAndTrain;
 
 
 
@@ -57,31 +58,35 @@ public class BasicCSVClassifier {
     private static final Logger log = LogManager.getLogger();
   
 
-    private static Map<Integer,String> eats = readEnumCSV("eats.csv");
-    private static Map<Integer,String> sounds = readEnumCSV("sounds.csv");
-    private static Map<Integer,String> classifiers = readEnumCSV("classifiers.csv");
+    //private static Map<Integer,String> eats = readEnumCSV("eats.csv");
+    //private static Map<Integer,String> sounds = readEnumCSV("sounds.csv");
+    //private static Map<Integer,String> classifiers = readEnumCSV("classifiers.csv");
 
     public static void main(String[] args){
 
         try {
             System.out.println("hello workd");
             //Second: the RecordReaderDataSetIterator handles conversion to DataSet objects, ready for use in neural network
-            int labelIndex = 4;     //5 values in each row of the animals.csv CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
-            int numClasses = 3;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
+            int labelIndex = 101;     //5 values in each row of the animals.csv CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
+            int numClasses = 10;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
 
-            int batchSizeTraining = 30;    //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
-            DataSet trainingData = readCSVDataset("animals_train.csv",
+            int batchSizeTraining = 37143;    //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
+            DataSet trainingData1 = readCSVDataset("train_most100.csv",
                     batchSizeTraining, labelIndex, numClasses);
+            
+            SplitTestAndTrain testAndTrain = trainingData1.splitTestAndTrain(0.65);  //Use 65% of data for training
 
             // this is the data we want to classify
-            int batchSizeTest = 44;
-            DataSet testData = readCSVDataset("animals.csv",
-                    batchSizeTest, labelIndex, numClasses);
+            //int batchSizeTest = 12159;
+            //DataSet testData = readCSVDataset("test_most100.csv",
+            //        batchSizeTest, labelIndex, numClasses);
 
-
+            DataSet trainingData = testAndTrain.getTrain();
+            DataSet testData = testAndTrain.getTest();
+            
             // make the data model for records prior to normalization, because it
             // changes the data.
-            Map<Integer,Map<String,Object>> animals = makeAnimalsForTesting(testData);
+            //Map<Integer,Map<String,Object>> animals = makeAnimalsForTesting(testData);
 
 
             //We need to normalize our data. We'll use NormalizeStandardize (which gives us mean 0, unit variance):
@@ -90,8 +95,8 @@ public class BasicCSVClassifier {
             normalizer.transform(trainingData);     //Apply normalization to the training data
             normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
 
-            final int numInputs = 4;
-            int outputNum = 3;
+            final int numInputs = 101;
+            int outputNum = 10;
             int epochs = 1000;
             long seed = 6;
 
@@ -103,10 +108,10 @@ public class BasicCSVClassifier {
                     .updater(new Sgd(0.1))
                     .l2(1e-4)
                     .list()
-                    .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(3).build())
-                    .layer(1, new DenseLayer.Builder().nIn(3).nOut(3).build())
+                    .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(10).build())
+                    .layer(1, new DenseLayer.Builder().nIn(10).nOut(10).build())
                     .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
-                            .activation(Activation.SOFTMAX).nIn(3).nOut(outputNum).build())
+                            .activation(Activation.SOFTMAX).nIn(10).nOut(outputNum).build())
                     .backprop(true).pretrain(false)
                     .build();
 
@@ -120,17 +125,17 @@ public class BasicCSVClassifier {
             }
 
             //evaluate the model on the test set
-            System.out.println("evaluating 1 ?");
-            Evaluation eval = new Evaluation(3);
-            System.out.println("evaluating 1 ?");
+            //System.out.println("evaluating 1 ?");
+            Evaluation eval = new Evaluation(10);
+            //System.out.println("evaluating 1 ?");
             INDArray output = model.output(testData.getFeatureMatrix());
-            System.out.println("evaluating 1 ?");
+            //System.out.println("evaluating 1 ?");
 
             eval.eval(testData.getLabels(), output);
             log.info(eval.stats());
 
-            setFittedClassifiers(output, animals);
-            logAnimals(animals);
+            //setFittedClassifiers(output, animals);
+            //logAnimals(animals);
 
         } catch (Exception e){
             e.printStackTrace();
@@ -151,8 +156,8 @@ public class BasicCSVClassifier {
         for (int i = 0; i < output.rows() ; i++) {
 
             // set the classification from the fitted results
-            animals.get(i).put("classifier",
-                    classifiers.get(maxIndex(getFloatArrayFromSlice(output.slice(i)))));
+ //           animals.get(i).put("classifier",
+ //                   classifiers.get(maxIndex(getFloatArrayFromSlice(output.slice(i)))));
 
         }
 
@@ -210,8 +215,8 @@ public class BasicCSVClassifier {
 
             //set the attributes
             animal.put("yearsLived", slice.getInt(0));
-            animal.put("eats", eats.get(slice.getInt(1)));
-            animal.put("sounds", sounds.get(slice.getInt(2)));
+           // animal.put("eats", eats.get(slice.getInt(1)));
+            //animal.put("sounds", sounds.get(slice.getInt(2)));
             animal.put("weight", slice.getFloat(3));
 
             animals.put(i,animal);
