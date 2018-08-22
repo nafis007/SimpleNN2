@@ -32,7 +32,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.opencsv.CSVReader;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 
 import org.apache.logging.log4j.LogManager;
@@ -65,20 +67,29 @@ public class BasicCSVClassifier {
     public static void main(String[] args){
 
         try {
-            System.out.println("hello workd");
+            System.out.println("hello world");
             //Second: the RecordReaderDataSetIterator handles conversion to DataSet objects, ready for use in neural network
             int labelIndex = 101;     //5 values in each row of the animals.csv CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
             int numClasses = 10;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
-
-            int batchSizeTraining = 37143;    //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
-            DataSet trainingData = readCSVDataset("train_most100.csv",
+            
+            
+            String trainingFileName = "train_most100.csv";
+            String testingFileName = "dev_most100.csv";
+            
+            
+            
+            int batchSizeTraining = getRowCount(trainingFileName); //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
+                                              // number of rows of the training csv file
+            
+            DataSet trainingData = readCSVDataset(trainingFileName,
                     batchSizeTraining, labelIndex, numClasses);
             
             //SplitTestAndTrain testAndTrain = trainingData1.splitTestAndTrain(0.65);  //Use 65% of data for training
 
             // this is the data we want to classify
-            int batchSizeTest = 12164;
-            DataSet testData = readCSVDataset("dev_most100.csv",
+            int batchSizeTest = getRowCount(testingFileName);          // number of rows of the test csv file
+            
+            DataSet testData = readCSVDataset(testingFileName,
                     batchSizeTest, labelIndex, numClasses);
 
             //DataSet trainingData = testAndTrain.getTrain();
@@ -95,8 +106,8 @@ public class BasicCSVClassifier {
             normalizer.transform(trainingData);     //Apply normalization to the training data
             normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
 
-            final int numInputs = 101;
-            int outputNum = 10;
+            final int numInputs = 101; // features
+            int outputNum = 10; // class labels
             int epochs = 1000;
             long seed = 6;
 
@@ -110,7 +121,9 @@ public class BasicCSVClassifier {
                     .list()
                     .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(10).build())
                     .layer(1, new DenseLayer.Builder().nIn(10).nOut(10).build())
-                    .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                    .layer(2, new DenseLayer.Builder().nIn(10).nOut(10).build())
+                    .layer(3, new DenseLayer.Builder().nIn(10).nOut(10).build())
+                    .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                             .activation(Activation.SOFTMAX).nIn(10).nOut(outputNum).build())
                     .backprop(true).pretrain(false)
                     .build();
@@ -284,7 +297,21 @@ public class BasicCSVClassifier {
         DataSetIterator iterator = new RecordReaderDataSetIterator(rr,batchSize,labelIndex,numClasses);
         return iterator.next();
     }
+    
+    
+    public static int getRowCount(String fileName) throws FileNotFoundException, IOException {
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName));
+        String input;
+        int count = 0;
+        while((input = bufferedReader.readLine()) != null)
+        {
+            count++;
+        }
 
+        System.out.println("Count : "+count);
+        
+        return count;
+    }
 
 
 }
