@@ -36,9 +36,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.util.ArrayList;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.datavec.api.records.metadata.RecordMetaData;
+import org.deeplearning4j.eval.meta.Prediction;
 import org.nd4j.linalg.dataset.SplitTestAndTrain;
 
 
@@ -99,7 +102,11 @@ public class BasicCSVClassifier {
             // changes the data.
             //Map<Integer,Map<String,Object>> animals = makeAnimalsForTesting(testData);
 
-
+            
+            List<RecordMetaData> testMetaData = testData.getExampleMetaData(RecordMetaData.class); // needed to call in the eval method
+            
+            
+            
             //We need to normalize our data. We'll use NormalizeStandardize (which gives us mean 0, unit variance):
             DataNormalization normalizer = new NormalizerStandardize();
             normalizer.fit(trainingData);           //Collect the statistics (mean/stdev) from the training data. This does not modify the input data
@@ -121,9 +128,7 @@ public class BasicCSVClassifier {
                     .list()
                     .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(10).build())
                     .layer(1, new DenseLayer.Builder().nIn(10).nOut(10).build())
-                    .layer(2, new DenseLayer.Builder().nIn(10).nOut(10).build())
-                    .layer(3, new DenseLayer.Builder().nIn(10).nOut(10).build())
-                    .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                    .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                             .activation(Activation.SOFTMAX).nIn(10).nOut(outputNum).build())
                     .backprop(true).pretrain(false)
                     .build();
@@ -144,8 +149,40 @@ public class BasicCSVClassifier {
             INDArray output = model.output(testData.getFeatureMatrix());
             //System.out.println("evaluating 1 ?");
 
-            eval.eval(testData.getLabels(), output);
-            log.info(eval.stats());
+            eval.eval(testData.getLabels(), output, testMetaData);     //Note we are passing in the test set metadata here
+            log.info(eval.stats());                                    // for getting the predicted labels
+            
+            
+            // test print
+            //////////////////////////////////////getting predicted labels/////////////////////////////
+            System.out.println("test print");
+            //List<Prediction> pList = eval.getPredictionsByActualClass(4);       //All predictions for actual class 2
+            
+            ArrayList<List<Prediction>> predictionLists = new ArrayList<List<Prediction>>();
+            
+            for(int i = 0; i<numClasses; i++) {
+                List<Prediction> tempList = eval.getPredictionsByActualClass(i);
+                if(tempList != null) {
+                    System.out.println("test "+i);
+                    predictionLists.add(tempList);
+                }  
+            }
+            
+            System.out.println("\n+++++Predictions+++++");
+            
+            for(List<Prediction> pList : predictionLists) {
+                for(Prediction p : pList){
+                    System.out.println("Predicted class: " + p.getPredictedClass() + ", Actual class: " + p.getActualClass());
+                }
+            }
+            //////////////////////////////////////getting predicted labels/////////////////////////////
+            /*List<Prediction> predictionErrors = eval.getPredictionErrors();
+            System.out.println("\n\n+++++ Predictions+++++");
+            for(Prediction p : predictionErrors){
+                System.out.println("Predicted class: " + p.getPredictedClass() + ", Actual class: " + p.getActualClass());
+            }*/
+            
+            
 
             //setFittedClassifiers(output, animals);
             //logAnimals(animals);
@@ -294,7 +331,16 @@ public class BasicCSVClassifier {
 
         RecordReader rr = new CSVRecordReader();
         rr.initialize(new FileSplit(new File(csvFileClasspath)));
-        DataSetIterator iterator = new RecordReaderDataSetIterator(rr,batchSize,labelIndex,numClasses);
+        
+        //DataSetIterator iterator = new RecordReaderDataSetIterator(rr,batchSize,labelIndex,numClasses);
+        
+        
+        // Above line is changed into the bottom two lines, for getting predicted labels. we need to
+        // setCollectMetaData to true to collect the meta data in the necessary method calls
+        RecordReaderDataSetIterator iterator = new RecordReaderDataSetIterator(rr,batchSize,labelIndex,numClasses);
+        iterator.setCollectMetaData(true);
+        
+        
         return iterator.next();
     }
     
