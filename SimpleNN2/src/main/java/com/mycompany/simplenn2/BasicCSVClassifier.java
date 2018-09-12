@@ -36,6 +36,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.util.ArrayList;
 
 import org.apache.logging.log4j.LogManager;
@@ -73,11 +74,11 @@ public class BasicCSVClassifier {
             System.out.println("hello world");
             //Second: the RecordReaderDataSetIterator handles conversion to DataSet objects, ready for use in neural network
             int labelIndex = 101;     //5 values in each row of the animals.csv CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
-            int numClasses = 10;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
+            int numClasses = 11;     //3 classes (types of animals) in the animals data set. Classes have integer values 0, 1 or 2
             
             
             String trainingFileName = "train_most100.csv";
-            String testingFileName = "dev_most100.csv";
+            String testingFileName = "test_most100.csv";
             
             
             
@@ -114,7 +115,7 @@ public class BasicCSVClassifier {
             normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
 
             final int numInputs = 101; // features
-            int outputNum = 10; // class labels
+            int outputNum = 11; // class labels
             int epochs = 1000;
             long seed = 6;
 
@@ -126,10 +127,10 @@ public class BasicCSVClassifier {
                     .updater(new Sgd(0.1))
                     .l2(1e-4)
                     .list()
-                    .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(10).build())
-                    .layer(1, new DenseLayer.Builder().nIn(10).nOut(10).build())
+                    .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(11).build())
+                    .layer(1, new DenseLayer.Builder().nIn(11).nOut(11).build())
                     .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
-                            .activation(Activation.SOFTMAX).nIn(10).nOut(outputNum).build())
+                            .activation(Activation.SOFTMAX).nIn(11).nOut(outputNum).build())
                     .backprop(true).pretrain(false)
                     .build();
 
@@ -144,7 +145,7 @@ public class BasicCSVClassifier {
 
             //evaluate the model on the test set
             //System.out.println("evaluating 1 ?");
-            Evaluation eval = new Evaluation(10);
+            Evaluation eval = new Evaluation(11);
             //System.out.println("evaluating 1 ?");
             INDArray output = model.output(testData.getFeatureMatrix());
             //System.out.println("evaluating 1 ?");
@@ -161,7 +162,8 @@ public class BasicCSVClassifier {
             ArrayList<List<Prediction>> predictionLists = new ArrayList<List<Prediction>>();
             
             for(int i = 0; i<numClasses; i++) {
-                List<Prediction> tempList = eval.getPredictionsByActualClass(i);
+                //List<Prediction> tempList = eval.getPredictionsByActualClass(i);
+                List<Prediction> tempList = eval.getPredictionByPredictedClass(i);
                 if(tempList != null) {
                     System.out.println("test "+i);
                     predictionLists.add(tempList);
@@ -169,10 +171,14 @@ public class BasicCSVClassifier {
             }
             
             System.out.println("\n+++++Predictions+++++");
-            
+            int count = 1;
             for(List<Prediction> pList : predictionLists) {
                 for(Prediction p : pList){
                     System.out.println("Predicted class: " + p.getPredictedClass() + ", Actual class: " + p.getActualClass());
+                    
+                    String out = count+","+p.getPredictedClass()+"\n";
+                    writeToFile("ouputDL4J.txt",out);
+                    count++;
                 }
             }
             //////////////////////////////////////getting predicted labels/////////////////////////////
@@ -358,6 +364,18 @@ public class BasicCSVClassifier {
         
         return count;
     }
-
+    
+    public static void writeToFile(String FileName, String Content) {
+        try
+        {
+            FileWriter fw = new FileWriter(FileName,true); //the true will append the new data
+            fw.write(Content);//appends the string to the file
+            fw.close();
+        }
+        catch(IOException ioe)
+        {
+            System.err.println("IOException: " + ioe.getMessage());
+        }
+    }
 
 }
